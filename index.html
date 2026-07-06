@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech Agent - Dashboard Competenze Digitali</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: #161b22;
+            --text: #c9d1d9;
+            --accent: #58a6ff;
+            --success: #238636;
+            --border: #30363d;
+        }
+        body, html { 
+            margin: 0; padding: 0; height: 100%; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: var(--bg); color: var(--text); overflow: hidden; 
+        }
+        
+        /* Layout ottimizzato per monitor ampi */
+        .dashboard { display: grid; grid-template-columns: 280px 1fr 350px; height: 100vh; }
+        
+        /* Colonna Sinistra */
+        .panel { background: var(--panel); display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+        
+        /* Intestazione Scuola */
+        .brand-header {
+            padding: 22px 20px;
+            background: #010409;
+            border-bottom: 1px solid var(--border);
+        }
+        .school-name {
+            font-weight: 800;
+            color: #fff;
+            font-size: 1.15rem;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+        .animator-name {
+            color: #8b949e;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .header { 
+            padding: 15px 20px; font-weight: 800; border-bottom: 1px solid var(--border); 
+            color: var(--accent); letter-spacing: 1px; text-transform: uppercase; 
+            display: flex; align-items: center; gap: 10px; font-size: 0.9rem;
+        }
+        .header span { display: inline-block; width: 10px; height: 10px; background: var(--success); border-radius: 50%; box-shadow: 0 0 10px var(--success); }
+        .video-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; }
+        .video-item { 
+            padding: 18px 20px; cursor: pointer; border-bottom: 1px solid var(--border); 
+            transition: all 0.2s; font-size: 14px; border-left: 4px solid transparent; 
+        }
+        .video-item:hover { background: #1f242c; }
+        .video-item.active { background: #1f242c; border-left: 4px solid var(--accent); color: #fff; font-weight: bold; }
+        .video-item.completed { border-left-color: var(--success); }
+        
+        /* Colonna Centrale */
+        .main-stage { display: flex; flex-direction: column; padding: 25px; background: radial-gradient(circle at center, #161b22 0%, #0d1117 100%); }
+        .player-container { 
+            flex-grow: 1; border-radius: 12px; overflow: hidden; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6); border: 1px solid var(--border); 
+            background: #000; position: relative; 
+        }
+        iframe { width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0; }
+        
+        /* Colonna Destra */
+        .panel-right { border-left: 1px solid var(--border); padding: 20px; overflow-y: auto; background: #0d1117;}
+        .panel-right h2 { margin-top: 0; color: var(--accent); font-size: 1.2rem; margin-bottom: 5px; }
+        .panel-right p { font-size: 0.9rem; color: #8b949e; margin-bottom: 25px; line-height: 1.4; }
+        
+        /* Elementi Interattivi Drag & Drop */
+        .word-bank { 
+            display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 30px; 
+            min-height: 50px; padding: 15px; background: var(--panel); 
+            border-radius: 8px; border: 1px dashed #484f58; 
+        }
+        .draggable { 
+            background: var(--accent); color: #000; padding: 8px 14px; 
+            border-radius: 20px; font-size: 0.9rem; font-weight: 600; 
+            cursor: grab; user-select: none; transition: transform 0.1s; 
+        }
+        .draggable:active { cursor: grabbing; transform: scale(0.95); }
+        
+        .task-box { 
+            background: var(--panel); padding: 15px; margin-bottom: 15px; 
+            border-radius: 8px; border: 1px solid var(--border); 
+            font-size: 0.95rem; line-height: 1.4; 
+        }
+        .drop-zone { 
+            background: #0d1117; min-height: 40px; border: 2px dashed #484f58; 
+            margin-top: 12px; border-radius: 6px; display: flex; 
+            align-items: center; justify-content: center; padding: 5px; 
+            color: #8b949e; font-size: 0.85rem; transition: all 0.2s; text-align: center;
+        }
+        .drop-zone.drag-over { border-color: var(--accent); background: rgba(88, 166, 255, 0.1); }
+        .drop-zone.correct { border: 2px solid var(--success); background: rgba(35, 134, 54, 0.15); color: var(--success); font-weight: bold; }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+        .error { animation: shake 0.3s ease-in-out; border-color: #f85149 !important; }
+        
+        @media (max-width: 1024px) {
+            .dashboard { grid-template-columns: 220px 1fr 280px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <!-- Log delle Missioni -->
+    <div class="panel">
+        <div class="brand-header">
+            <div class="school-name">Scuola Sacra Famiglia</div>
+            <div class="animator-name">Animatore digitale: Andrea Cerioli</div>
+        </div>
+        <div class="header"><span></span> Mission Log</div>
+        <ul class="video-list" id="video-list">
+            <!-- Popolato da JS -->
+        </ul>
+    </div>
+
+    <!-- Player Video -->
+    <div class="main-stage">
+        <div class="player-container">
+            <div id="yt-player"></div>
+        </div>
+    </div>
+
+    <!-- Area Metacognitiva -->
+    <div class="panel-right">
+        <div id="interactive-area">
+            <h2>Terminale Dati</h2>
+            <p>Seleziona un modulo per avviare il decrypting.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Configurazione dei 6 moduli didattici
+    const missionData = {
+        'wT6wF0TiKVk': {
+            title: 'Il Web e Internet',
+            description: 'Associa i termini alla loro funzione strutturale nella rete.',
+            tasks: [
+                { question: 'L\'infrastruttura fisica di cavi e connessioni globali', answer: 'Internet' },
+                { question: 'Il computer remoto che fornisce i dati dei siti web', answer: 'Server' }
+            ],
+            words: ['Internet', 'Server', 'Client', 'Wi-Fi']
+        },
+        'UcUZE8BJ4Ic': {
+            title: 'Videogiochi',
+            description: 'Ricostruisci il ciclo neurobiologico del gaming.',
+            tasks: [
+                { question: 'Neurotrasmettitore rilasciato in attesa di un premio', answer: 'Dopamina' },
+                { question: 'Meccanismo imprevedibile che genera forte anticipazione', answer: 'Ricompensa Variabile' }
+            ],
+            words: ['Dopamina', 'Ricompensa Variabile', 'Adrenalina', 'Tolleranza']
+        },
+        'hnheqIm7fQI': {
+            title: 'Protocolli VPN',
+            description: 'Decodifica i principi di sicurezza dei dati online.',
+            tasks: [
+                { question: 'Identificativo numerico che rivela la tua posizione', answer: 'Indirizzo IP' },
+                { question: 'Processo che trasforma i dati in un codice illeggibile', answer: 'Crittografia' }
+            ],
+            words: ['Indirizzo IP', 'Crittografia', 'HTTPS', 'Malware']
+        },
+        'ltBVtx6sFpc': {
+            title: 'Infrastruttura 5G',
+            description: 'Configura l\'hardware della nuova connettività.',
+            tasks: [
+                { question: 'Onde ad altissima velocità ma a corto raggio', answer: 'Millimetriche' },
+                { question: 'Tecnologia che indirizza il segnale verso un dispositivo specifico', answer: 'Beamforming' }
+            ],
+            words: ['Millimetriche', 'Beamforming', 'Fibra Ottica', 'Small Cells']
+        },
+        'sX25z_-zMgI': {
+            title: 'Blockchain',
+            description: 'Valida e metti in sicurezza il blocco dati.',
+            tasks: [
+                { question: 'La stringa unica che funge da impronta digitale del blocco', answer: 'Hash' },
+                { question: 'Sistema distribuito senza un ente di controllo centrale', answer: 'Decentralizzato' }
+            ],
+            words: ['Hash', 'Decentralizzato', 'Proof of Work', 'Criptovaluta']
+        },
+        '3EQ35ogcAZg': {
+            title: 'Storia e Web',
+            description: 'Classifica le ere e i livelli profondi della rete.',
+            tasks: [
+                { question: 'I siti indicizzati dai motori di ricerca e accessibili a tutti', answer: 'Surface Web' },
+                { question: 'Dati privati (mail, archivi bancari) protetti da password', answer: 'Deep Web' },
+                { question: 'Il progetto militare americano precursore di Internet', answer: 'ARPANET' }
+            ],
+            words: ['Surface Web', 'Deep Web', 'Dark Web', 'ARPANET']
+        }
+    };
+
+    let player;
+    let currentVideoId = null;
+
+    // Iniezione sicura delle YouTube API
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    function onYouTubeIframeAPIReady() {
+        const videoList = document.getElementById('video-list');
+        
+        Object.keys(missionData).forEach((id, index) => {
+            const li = document.createElement('li');
+            li.className = 'video-item';
+            li.textContent = `Modulo ${index + 1}: ${missionData[id].title}`;
+            li.dataset.id = id;
+            li.onclick = () => loadMission(id, li);
+            videoList.appendChild(li);
+        });
+
+        const firstId = Object.keys(missionData)[0];
+        player = new YT.Player('yt-player', {
+            videoId: firstId,
+            playerVars: { 'autoplay': 0, 'rel': 0, 'modestbranding': 1 },
+            events: {
+                'onStateChange': onPlayerStateChange
+            }
+        });
+        
+        loadMission(firstId, videoList.firstChild);
+    }
+
+    function onPlayerStateChange(event) {
+        // Feedback visivo quando il video termina (State == 0)
+        if (event.data === 0) {
+            const rightPanel = document.querySelector('.panel-right');
+            rightPanel.style.boxShadow = 'inset 0 0 30px rgba(88, 166, 255, 0.2)';
+            setTimeout(() => rightPanel.style.boxShadow = 'none', 1500);
+        }
+    }
+
+    function loadMission(videoId, element) {
+        currentVideoId = videoId;
+        
+        document.querySelectorAll('.video-item').forEach(el => el.classList.remove('active'));
+        if(element) element.classList.add('active');
+
+        if (player && player.loadVideoById) {
+            player.loadVideoById(videoId);
+            player.pauseVideo(); // Evita l'autoplay per bypassare blocchi su mobile
+        }
+
+        renderTasks(videoId);
+    }
+
+    function renderTasks(videoId) {
+        const data = missionData[videoId];
+        const container = document.getElementById('interactive-area');
+        
+        container.innerHTML = `
+            <h2>${data.title}</h2>
+            <p>${data.description}</p>
+            <div class="word-bank" id="word-bank"></div>
+            <div id="task-container"></div>
+        `;
+
+        const wordBank = document.getElementById('word-bank');
+        const taskContainer = document.getElementById('task-container');
+
+        // Genera le zone di rilascio
+        data.tasks.forEach(task => {
+            const box = document.createElement('div');
+            box.className = 'task-box';
+            box.innerHTML = `<div>${task.question}</div>`;
+            
+            const dropZone = document.createElement('div');
+            dropZone.className = 'drop-zone';
+            dropZone.dataset.answer = task.answer;
+            dropZone.textContent = "Trascina qui il termine corretto";
+            
+            dropZone.addEventListener('dragover', e => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+            dropZone.addEventListener('drop', handleDrop);
+            
+            box.appendChild(dropZone);
+            taskContainer.appendChild(box);
+        });
+
+        // Genera le parole trascinabili (mescolate)
+        const shuffled = [...data.words].sort(() => Math.random() - 0.5);
+        shuffled.forEach(word => {
+            const w = document.createElement('div');
+            w.className = 'draggable';
+            w.draggable = true;
+            w.textContent = word;
+            w.dataset.word = word;
+            w.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text/plain', word);
+            });
+            wordBank.appendChild(w);
+        });
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        
+        const droppedWord = e.dataTransfer.getData('text/plain');
+        const expected = e.currentTarget.dataset.answer;
+        
+        if (droppedWord === expected) {
+            e.currentTarget.textContent = droppedWord;
+            e.currentTarget.classList.add('correct');
+            
+            const draggedEl = document.querySelector(`.draggable[data-word="${droppedWord}"]`);
+            if(draggedEl) draggedEl.remove();
+            
+            checkWin();
+        } else {
+            e.currentTarget.classList.add('error');
+            setTimeout(() => e.currentTarget.classList.remove('error'), 300);
+        }
+    }
+
+    function checkWin() {
+        const zones = document.querySelectorAll('.drop-zone');
+        const allCorrect = Array.from(zones).every(z => z.classList.contains('correct'));
+        if (allCorrect) {
+            const activeMenu = document.querySelector('.video-item.active');
+            if(activeMenu && !activeMenu.classList.contains('completed')) {
+                activeMenu.classList.add('completed');
+                activeMenu.innerHTML += ' <span style="color:#238636; float:right;">✓ Completato</span>';
+            }
+        }
+    }
+</script>
+</body>
+</html>
