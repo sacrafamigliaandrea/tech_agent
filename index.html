@@ -19,7 +19,7 @@
             background: var(--bg); color: var(--text); overflow: hidden; 
         }
         
-        /* Layout ottimizzato per monitor ampi */
+        /* Layout ottimizzato per monitor ampi (es. 22 pollici) */
         .dashboard { display: grid; grid-template-columns: 280px 1fr 350px; height: 100vh; }
         
         /* Colonna Sinistra */
@@ -61,14 +61,52 @@
         .video-item.active { background: #1f242c; border-left: 4px solid var(--accent); color: #fff; font-weight: bold; }
         .video-item.completed { border-left-color: var(--success); }
         
-        /* Colonna Centrale */
+        /* Colonna Centrale e Blocco Video */
         .main-stage { display: flex; flex-direction: column; padding: 25px; background: radial-gradient(circle at center, #161b22 0%, #0d1117 100%); }
         .player-container { 
             flex-grow: 1; border-radius: 12px; overflow: hidden; 
             box-shadow: 0 15px 35px rgba(0,0,0,0.6); border: 1px solid var(--border); 
             background: #000; position: relative; 
         }
-        iframe { width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0; }
+        
+        /* Blocchiamo gli eventi puntatore sull'iframe, così lo studente non può cliccare i titoli di YouTube */
+        iframe { width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0; pointer-events: none; }
+        
+        /* Overlay per Play/Pausa e per intercettare i click sicuri */
+        .player-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 10;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.7);
+            transition: background 0.3s;
+        }
+        .player-overlay.playing {
+            background: transparent;
+        }
+        .custom-play-btn {
+            background: var(--accent);
+            color: #000;
+            padding: 15px 35px;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            transition: opacity 0.2s, transform 0.2s;
+            box-shadow: 0 4px 20px rgba(88, 166, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .player-overlay:hover .custom-play-btn {
+            transform: scale(1.05);
+        }
+        .player-overlay.playing .custom-play-btn {
+            opacity: 0;
+            transform: scale(0.8);
+            pointer-events: none;
+        }
         
         /* Colonna Destra */
         .panel-right { border-left: 1px solid var(--border); padding: 20px; overflow-y: auto; background: #0d1117;}
@@ -130,10 +168,14 @@
         </ul>
     </div>
 
-    <!-- Player Video -->
+    <!-- Player Video (Blindato) -->
     <div class="main-stage">
         <div class="player-container">
             <div id="yt-player"></div>
+            <!-- Questo strato protettivo gestisce i click ed evita fughe su YouTube -->
+            <div id="player-overlay" class="player-overlay" onclick="togglePlay()">
+                <div class="custom-play-btn" id="custom-play-btn">▶ Inizia Visione</div>
+            </div>
         </div>
     </div>
 
@@ -147,7 +189,7 @@
 </div>
 
 <script>
-    // Configurazione dei 6 moduli didattici
+    // Dati per i 7 moduli
     const missionData = {
         'wT6wF0TiKVk': {
             title: 'Il Web e Internet',
@@ -203,13 +245,22 @@
                 { question: 'Il progetto militare americano precursore di Internet', answer: 'ARPANET' }
             ],
             words: ['Surface Web', 'Deep Web', 'Dark Web', 'ARPANET']
+        },
+        'B_pOf8Muv88': {
+            title: 'Percorso del Segnale',
+            description: 'Traccia il viaggio fisico dei dati dalle antenne ai server.',
+            tasks: [
+                { question: 'L\'area geografica coperta dal segnale di una singola antenna', answer: 'Cella' },
+                { question: 'La centrale di server che elabora e instrada le chiamate', answer: 'Cervellone' }
+            ],
+            words: ['Cella', 'Cervellone', 'Fibra Ottica', 'Stazione Radio']
         }
     };
 
     let player;
     let currentVideoId = null;
 
-    // Iniezione sicura delle YouTube API
+    // Iniezione YouTube API
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
     const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -228,9 +279,19 @@
         });
 
         const firstId = Object.keys(missionData)[0];
+        
+        // Parametri ultra-restrittivi per evitare distrazioni
         player = new YT.Player('yt-player', {
             videoId: firstId,
-            playerVars: { 'autoplay': 0, 'rel': 0, 'modestbranding': 1 },
+            playerVars: { 
+                'autoplay': 0, 
+                'rel': 0, 
+                'modestbranding': 1,
+                'controls': 0,      // Nasconde TUTTI i controlli
+                'disablekb': 1,     // Disabilita le frecce per saltare in avanti
+                'fs': 0,            // Disabilita lo schermo intero
+                'iv_load_policy': 3 // Nasconde annotazioni extra
+            },
             events: {
                 'onStateChange': onPlayerStateChange
             }
@@ -239,9 +300,29 @@
         loadMission(firstId, videoList.firstChild);
     }
 
+    // Gestione Play/Pausa personalizzata cliccando sull'overlay
+    function togglePlay() {
+        if (!player || !player.getPlayerState) return;
+        const state = player.getPlayerState();
+        if (state === YT.PlayerState.PLAYING || state === 1) {
+            player.pauseVideo();
+        } else {
+            player.playVideo();
+        }
+    }
+
     function onPlayerStateChange(event) {
-        // Feedback visivo quando il video termina (State == 0)
-        if (event.data === 0) {
+        const overlay = document.getElementById('player-overlay');
+        const playBtn = document.getElementById('custom-play-btn');
+
+        if (event.data === YT.PlayerState.PLAYING || event.data === 1) {
+            if (overlay) overlay.classList.add('playing');
+        } else {
+            if (overlay) overlay.classList.remove('playing');
+        }
+
+        if (event.data === YT.PlayerState.ENDED || event.data === 0) {
+            if (playBtn) playBtn.textContent = "↻ Riguarda il video";
             const rightPanel = document.querySelector('.panel-right');
             rightPanel.style.boxShadow = 'inset 0 0 30px rgba(88, 166, 255, 0.2)';
             setTimeout(() => rightPanel.style.boxShadow = 'none', 1500);
@@ -254,9 +335,14 @@
         document.querySelectorAll('.video-item').forEach(el => el.classList.remove('active'));
         if(element) element.classList.add('active');
 
+        const overlay = document.getElementById('player-overlay');
+        const playBtn = document.getElementById('custom-play-btn');
+        if (overlay) overlay.classList.remove('playing');
+        if (playBtn) playBtn.textContent = "▶ Inizia Visione";
+
         if (player && player.loadVideoById) {
             player.loadVideoById(videoId);
-            player.pauseVideo(); // Evita l'autoplay per bypassare blocchi su mobile
+            player.pauseVideo(); 
         }
 
         renderTasks(videoId);
@@ -276,7 +362,6 @@
         const wordBank = document.getElementById('word-bank');
         const taskContainer = document.getElementById('task-container');
 
-        // Genera le zone di rilascio
         data.tasks.forEach(task => {
             const box = document.createElement('div');
             box.className = 'task-box';
@@ -298,7 +383,6 @@
             taskContainer.appendChild(box);
         });
 
-        // Genera le parole trascinabili (mescolate)
         const shuffled = [...data.words].sort(() => Math.random() - 0.5);
         shuffled.forEach(word => {
             const w = document.createElement('div');
